@@ -56,6 +56,45 @@ async function main() {
         res.json(results);
     })
 
+    // create group
+    app.post('/groupbuy/create', async function(req, res) {
+        try {
+            let userName = req.body.userName;
+            let groupName = req.body.groupName;
+            let price = req.body.price;
+            let location = req.body.location;
+            let deadline = req.body.deadline;
+            let contact = req.body.contact;
+            let maxOrders = req.body.maxOrders;
+            let description = req.body.description;
+            let category = req.body.category;
+            let tags = req.body.tags;
+
+            let db = MongoUtil.getDB();
+            let result = await db.collection('groupbuy').insertOne({
+                'userName': userName,
+                'groupName': groupName,
+                'price': price,
+                'location': location,
+                'deadline': deadline,
+                'contact': contact,
+                'maxOrders': maxOrders,
+                'description': description,
+                'category': category,
+                'tags': tags
+            });
+            res.status(200);
+            res.json({
+                'insertedId': result.insertedId
+            });
+        } catch(e) {
+            res.status(500);
+            res.json({
+                'error': e
+            });
+        }
+    })
+
     app.listen(3000, ()=>{
         console.log("Server started.");
     })
