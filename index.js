@@ -16,15 +16,21 @@ async function main() {
     // connect to mongodb
     await MongoUtil.connect(MongoUrl, 'tgc13_assignment2');
 
-    // get all groupbuy list
+    // get all groupbuy list greater or equal to today
+    // hide expired groupbuy
     app.get('/groupbuy', async function(req, res) {
         let db = MongoUtil.getDB();
-        let results = await db.collection('groupbuy').find({}).toArray();
+        let results = await db.collection('groupbuy').find({
+            'deadline': {
+                $gte: new Date().toISOString().split('T')[0]
+            }
+        }).toArray();
         res.json(results);
     })
 
     // search function
     app.get('/groupbuy/search', async function(req, res){
+        console.log(req.query);
         let criteria = {};
 
         if (req.query.groupName) {
@@ -32,15 +38,12 @@ async function main() {
         }
 
         if (req.query.price) {
-            criteria['price'] = {$regex: req.query.price, $options:'i'}
+            const price = parseFloat(req.query.price);
+            criteria['price'] = {$lt: price}
         }
 
         if (req.query.location) {
             criteria['location'] = {$regex: req.query.location, $options:'i'}
-        }
-
-        if (req.query.deadline) {
-            criteria['deadline'] = {$regex: req.query.deadline, $options:'i'}
         }
 
         if (req.query.category) {
@@ -48,7 +51,11 @@ async function main() {
         }
 
         if (req.query.tags) {
-            criteria['tags'] = {$regex: req.query.tags, $options:'i'}
+            let tags = req.query.tags;
+            // regex to split by comma and remove whitespace
+            const regex = /\s*(?:,|$)\s*/
+            const queryList = tags.split(regex)
+            criteria['tags'] = {$in: queryList}
         }
 
         let db = MongoUtil.getDB();
@@ -59,29 +66,19 @@ async function main() {
     // create group
     app.post('/groupbuy/create', async function(req, res) {
         try {
-            let userName = req.body.userName;
-            let groupName = req.body.groupName;
-            let price = req.body.price;
-            let location = req.body.location;
-            let deadline = req.body.deadline;
-            let contact = req.body.contact;
-            let maxOrders = req.body.maxOrders;
-            let description = req.body.description;
-            let category = req.body.category;
-            let tags = req.body.tags;
-
             let db = MongoUtil.getDB();
             let result = await db.collection('groupbuy').insertOne({
-                'userName': userName,
-                'groupName': groupName,
-                'price': price,
-                'location': location,
-                'deadline': deadline,
-                'contact': contact,
-                'maxOrders': maxOrders,
-                'description': description,
-                'category': category,
-                'tags': tags
+                'userName': req.body.userName,
+                'groupName': req.body.groupName,
+                'price': req.body.price,
+                'location': req.body.location,
+                'deadline': req.body.deadline,
+                'contact': req.body.contact,
+                'maxOrders': req.body.maxOrders,
+                'description': req.body.description,
+                'category': req.body.category,
+                'tags': req.body.tags,
+                'groupMembers': []
             });
             res.status(200);
             res.json({
@@ -93,6 +90,48 @@ async function main() {
                 'error': e
             });
         }
+    })
+
+    // join group
+    app.put('/groupbuy/join/:groupid', async function(req, res) {
+        try {
+            let db = MongoUtil.getDB();
+            let result = await db.collection('groupbuy').updateOne({
+                '_id': ObjectId(req.params.groupid)
+            }, {
+                '$push': {
+                    'groupMembers': {
+                        '_id': new ObjectId(),
+                        'firstName': req.body.firstName,
+                        'lastName': req.body.lastName,
+                        'contact': req.body.contact
+                    }
+                }
+            });
+            res.json(result);
+        } catch(e) {
+            res.status(500);
+            res.json({
+                'error': e
+            });
+        }
+    })
+
+    // find member in group
+    app.get('/groupbuy/join/:memberid', async function(req, res) {
+        let db = MongoUtil.getDB();
+        let result = await db.collection('groupbuy').findOne({
+            'groupMembers._id': ObjectId(req.params.memberid)
+        }, {
+            'projection': {
+                'groupMembers': {
+                    '$elemMatch': {
+                        '_id': ObjectId(req.params.memberid)
+                    }
+                }
+            }
+        });
+        res.json(result);
     })
 
     app.listen(3000, ()=>{
