@@ -30,7 +30,6 @@ async function main() {
 
     // search function
     app.get('/groupbuy/search', async function(req, res){
-        console.log(req.query);
         let criteria = {};
 
         if (req.query.groupName) {
@@ -39,23 +38,23 @@ async function main() {
 
         if (req.query.price) {
             const price = parseFloat(req.query.price);
-            criteria['price'] = {$lt: price}
+            criteria['price'] = {$lte: price}
         }
 
         if (req.query.location) {
-            criteria['location'] = {$regex: req.query.location, $options:'i'}
+            criteria['location'] = {$regex: req.query.location, $options:'i'};
         }
 
         if (req.query.category) {
-            criteria['category'] = {$regex: req.query.category, $options:'i'}
+            criteria['category'] = {$regex: req.query.category, $options:'i'};
         }
 
         if (req.query.tags) {
             let tags = req.query.tags;
             // regex to split by comma and remove whitespace
             const regex = /\s*(?:,|$)\s*/
-            const queryList = tags.split(regex)
-            criteria['tags'] = {$in: queryList}
+            const queryList = tags.split(regex);
+            criteria['tags'] = {$in: queryList};
         }
 
         let db = MongoUtil.getDB();
@@ -78,12 +77,12 @@ async function main() {
                 'description': req.body.description,
                 'category': req.body.category,
                 'tags': req.body.tags,
-                'groupMembers': []
+                'groupMembers': [],
+                'createdOn': new Date().toISOString(),
+                'lastEditedOn': ""
             });
             res.status(200);
-            res.json({
-                'insertedId': result.insertedId
-            });
+            res.json(result);
         } catch(e) {
             res.status(500);
             res.json({
@@ -104,10 +103,12 @@ async function main() {
                         '_id': new ObjectId(),
                         'firstName': req.body.firstName,
                         'lastName': req.body.lastName,
-                        'contact': req.body.contact
+                        'contact': req.body.contact,
+                        'joinedOn': new Date().toISOString()
                     }
                 }
             });
+            res.status(200);
             res.json(result);
         } catch(e) {
             res.status(500);
@@ -132,6 +133,62 @@ async function main() {
             }
         });
         res.json(result);
+    })
+
+    // get selected group for update
+    app.get('/groupbuy/edit/:groupid', async function(req, res) {
+        let db = MongoUtil.getDB();
+        let result = await db.collection('groupbuy').findOne({
+            '_id': ObjectId(req.params.groupid)
+        });
+        res.json(result);
+    })
+
+    // update selected group
+    app.patch('/groupbuy/edit/:groupid', async function(req, res) {
+        try {
+            let db = MongoUtil.getDB();
+            let result = await db.collection('groupbuy').updateOne({
+                '_id': ObjectId(req.params.groupid)
+            }, {
+                '$set': {
+                    'groupName': req.body.groupName,
+                    'price': req.body.price,
+                    'location': req.body.location,
+                    'deadline': req.body.deadline,
+                    'contact': req.body.contact,
+                    'maxOrders': req.body.maxOrders,
+                    'description': req.body.description,
+                    'category': req.body.category,
+                    'tags': req.body.tags,
+                    'lastEditedOn': new Date().toISOString()
+                }
+            });
+            res.status(200);
+            res.json(result);   
+        } catch(e) {
+            res.status(500);
+            res.json({
+                'error': e
+            });
+        }
+    })
+
+    // delete group
+    app.delete('/groupbuy/delete/:groupid', async function(req, res) {
+        try {
+            let db = MongoUtil.getDB();
+            let result = db.collection('groupbuy').deleteOne({
+                '_id': ObjectId(req.params.groupid)
+            });
+            res.status(200);
+            res.json(result);
+        } catch(e) {
+            res.status(500);
+            res.json({
+                'error': e
+            });
+        }
     })
 
     app.listen(3000, ()=>{
