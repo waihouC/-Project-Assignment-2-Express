@@ -17,20 +17,26 @@ async function main() {
     await MongoUtil.connect(MongoUrl, 'tgc13_assignment2');
 
     // get all groupbuy list greater or equal to today
-    // hide expired groupbuy
+    // hide expired groupbuy and sort by deadline ascending
     app.get('/groupbuy', async function(req, res) {
         let db = MongoUtil.getDB();
         let results = await db.collection('groupbuy').find({
             'deadline': {
                 $gte: new Date().toISOString().split('T')[0]
             }
-        }).toArray();
+        }).sort({deadline: 1}).toArray();
         res.json(results);
     })
 
     // search function
     app.get('/groupbuy/search', async function(req, res){
-        let criteria = {};
+        // default criteria
+        // filter away expired groupbuy
+        let criteria = {
+            'deadline': {
+                $gte: new Date().toISOString().split('T')[0]
+            }
+        };
 
         if (req.query.groupName) {
             criteria['groupName'] = {$regex: req.query.groupName, $options:'i'};
@@ -58,7 +64,7 @@ async function main() {
         }
 
         let db = MongoUtil.getDB();
-        let results = await db.collection('groupbuy').find(criteria).toArray();
+        let results = await db.collection('groupbuy').find(criteria).sort({deadline: 1}).toArray();
         res.json(results);
     })
 
