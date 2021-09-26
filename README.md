@@ -32,4 +32,4 @@ The schema of a groupbuy object is listed below:
   - contact: String
   - joinedOn: String
 
-  Refer to https://github.com/waihouC/Project-Assignment-2-Vue for the full project.
+Refer to https://github.com/waihouC/Project-Assignment-2-Vue for the full project.
